@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,8 @@ const ConstructionCamera = () => {
   const [activeStream, setActiveStream] = useState(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const [cameraSourcess, setCameraSources] = useState([]);
+  const [loader, SetLoader] = useState(true);
 
   useEffect(() => {
     const checkToken = async () => {
@@ -44,40 +46,21 @@ const ConstructionCamera = () => {
     };
 
     checkToken();
+    getActiveCamera();
   }, []);
 
-  const cameraSources = [
-    {
-      thumbnail:
-        'https://g1.ipcamlive.com/player/snapshot.php?alias=swcam01flskgldmhlww',
-      url: 'https://g1.ipcamlive.com/player/player.php?alias=swcam01flskgldmhlww',
-    },
-    {
-      thumbnail:
-        'https://g1.ipcamlive.com/player/snapshot.php?alias=swcam0666bf6772bba2b',
-      url: 'https://g1.ipcamlive.com/player/player.php?alias=swcam0666bf6772bba2b',
-    },
-    {
-      thumbnail:
-        'https://g1.ipcamlive.com/player/snapshot.php?alias=swcam02asgafjazwlnv',
-      url: 'https://g1.ipcamlive.com/player/player.php?alias=swcam02asgafjazwlnv',
-    },
-    {
-      thumbnail:
-        'https://g1.ipcamlive.com/player/snapshot.php?alias=swcam046685794d07ca3',
-      url: 'https://g1.ipcamlive.com/player/player.php?alias=swcam046685794d07ca3',
-    },
-    {
-      thumbnail:
-        'https://g1.ipcamlive.com/player/snapshot.php?alias=swcam06668d731123449',
-      url: 'https://g1.ipcamlive.com/player/player.php?alias=swcam06668d731123449',
-    },
-    {
-      thumbnail:
-        'https://g1.ipcamlive.com/player/snapshot.php?alias=swcam03667d8f2c47edd',
-      url: 'https://g1.ipcamlive.com/player/player.php?alias=swcam03667d8f2c47edd',
-    },
-  ];
+  const getActiveCamera = async () =>{
+      const apiUrl = 'https://summerwood.biz/wp-json/custom-api/v1/camera';
+      const response = await fetch(apiUrl, {
+              method: 'GET',
+              headers: {
+                  'Content-Type': 'application/json',
+              }
+          });
+      const result = await response.json();
+      setCameraSources(result.data);
+      SetLoader(false);
+  }
 
   const saveActiveVideo = async (index, url) => {
     try {
@@ -107,80 +90,81 @@ const ConstructionCamera = () => {
   const handleImageError = (index) => {
     setImageErrors((prev) => ({ ...prev, [index]: true }));
   };
-
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView contentContainerStyle={styles.scrollContainer} >
       {/* <Header /> */}
       <View style={styles.container}>
-        {cameraSources.map((source, index) => (
-          <View key={index} style={styles.videoContainer}>
-            {activeVideoUrl === source.url ? (
-              <View style={[styles.outerContainer, { width: videoWidth, height: videoHeight }]}>
-                <View style={styles.webviewWrapper}>
-                  <WebView
-                    source={{ uri: source.url }}
-                    style={styles.webview}
-                    javaScriptEnabled
-                    allowsFullscreenVideo
-                    mediaPlaybackRequiresUserAction={false}
-                  />
-                </View>
-              </View>
-            ) : (
-              <View style={[styles.outerContainer, { width: videoWidth, height: videoHeight }]}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    setActiveStream(index);
-                    setActiveVideoUrl(source.url);
-                    saveActiveVideo(index, source.url);
-                  }}
-                  style={{ flex: 1 }}
-                >
-                  {imageErrors[index] ? (
-                    <View
-                      style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        backgroundColor: '#ccc',
-                        borderRadius: RADIUS,
-                      }}
-                    >
-                      <Text style={styles.errorText}>Snapshot is Not Available</Text>
-                    </View>
-                  ) : (
-                    <Image
-                      source={{ uri: source.thumbnail }}
-                      style={{ flex: 1, borderRadius: RADIUS }}
-                      onError={() => handleImageError(index)}
-                      resizeMode="cover"
+        {!loader &&
+          cameraSourcess.map((source, index) => (
+            <View key={index} style={styles.videoContainer}>
+              {activeVideoUrl === source.url ? (
+                <View style={[styles.outerContainer, { width: videoWidth, height: videoHeight }]}>
+                  <View style={styles.webviewWrapper}>
+                    <WebView
+                      source={{ uri: source.url }}
+                      style={styles.webview}
+                      javaScriptEnabled
+                      allowsFullscreenVideo
+                      mediaPlaybackRequiresUserAction={false}
                     />
-                  )}
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.outerContainer, { width: videoWidth, height: videoHeight }]}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setActiveStream(index);
+                      setActiveVideoUrl(source.url);
+                      saveActiveVideo(index, source.url);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    {imageErrors[index] ? (
+                      <View
+                        style={{
+                          flex: 1,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          backgroundColor: '#ccc',
+                          borderRadius: RADIUS,
+                        }}
+                      >
+                        <Text style={styles.errorText}>Snapshot is Not Available</Text>
+                      </View>
+                    ) : (
+                      <Image
+                        source={{ uri: source.thumbnail }}
+                        style={{ flex: 1, borderRadius: RADIUS }}
+                        onError={() => handleImageError(index)}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View  style={styles.liveBtn}>
+                <View style={styles.redDot}></View>
+                <Text style={styles.liveBtnText}>LIVE</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.heading}>Camera {index + 1}</Text>
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() => navigation.navigate('ViewFullScreen', { videoUrl: source.url })}
+                >
+                
+                    <Text style={styles.viewButtonText}>VIEW</Text>
+                    <Image
+                      source={ArrowVector}
+                      style={styles.ArrowVectorImg}
+                      resizeMode="contain"
+                    /> 
                 </TouchableOpacity>
               </View>
-            )}
-            <View  style={styles.liveBtn}>
-              <View style={styles.redDot}></View>
-              <Text style={styles.liveBtnText}>LIVE</Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.heading}>Camera {index + 1}</Text>
-              <TouchableOpacity
-                style={styles.viewButton}
-                onPress={() => navigation.navigate('ViewFullScreen', { videoUrl: source.url })}
-              >
-              
-                  <Text style={styles.viewButtonText}>VIEW</Text>
-                  <Image
-                    source={ArrowVector}
-                    style={styles.ArrowVectorImg}
-                    resizeMode="contain"
-                  /> 
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
+          ))
+      }
       </View>
     </ScrollView>
   );
