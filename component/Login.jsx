@@ -15,12 +15,16 @@ import {
     Animated,
     Easing,
     ScrollView,
+    Alert,
 } from 'react-native';
 import Logo from '../assets/logo-white.png';
 import Background from '../assets/login-background.png';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Keyboard } from 'react-native';
+import ReactNativeBiometrics from 'react-native-biometrics';
+
+const rnBiometrics = new ReactNativeBiometrics();
 
 
 const { width, height } = Dimensions.get('window');
@@ -30,7 +34,6 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [errorMsg, setErrorMsg] = useState('');
     const [token, setToken] = useState('');
     const slideAnim = useState(new Animated.Value(height))[0];
     const fadeAnim = useState(new Animated.Value(0))[0];
@@ -54,7 +57,14 @@ const Login = () => {
             });
             const result = await response.json();
            if (result?.code === 'success' && result?.data.token) {
+                const userId = String(result.data.user_id);
                 await AsyncStorage.setItem('token', String(result.data.token));
+                const { available } = await rnBiometrics.isSensorAvailable();
+
+                if (available) {
+                    await AsyncStorage.setItem('user_id', userId);
+                    await storePublicKey(userId);                    
+                }
                 setToken(result?.token);
                 navigation.replace('Homepage');
             } else {
@@ -79,7 +89,7 @@ const Login = () => {
             }
         } catch (error) {
             console.error('Error during login:', error);
-            alert('An error occurred. Please try again.');
+            Alert.alert('An error occurred. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -114,6 +124,90 @@ const Login = () => {
             keyboardDidShowListener.remove();
             keyboardDidHideListener.remove();
         };
+    }, []);
+
+    const generateNonce = (length = 32) => {
+        const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+        return result;
+    };
+
+
+     
+
+    const storePublicKey = async (userId) => {
+        try {
+            const { publicKey } = await rnBiometrics.createKeys();
+            await fetch('https://summerwood.biz/wp-json/custom-api/v1/store-public-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, public_key: publicKey }),
+            });
+        } catch (error) {
+            console.error('Public key error:', error);
+        }
+    };
+
+    const handleBiometricAuth = async () => {
+        const { available } = await rnBiometrics.isSensorAvailable();
+        if (!available) {
+            Alert.alert('Error', 'Biometric authentication not available');
+            return;
+        }
+        const payload = generateNonce();
+        const user_Id = await AsyncStorage.getItem('user_id');
+        try {
+            const result = await rnBiometrics.createSignature({
+            promptMessage: 'Authenticate Biometrics',
+            payload,
+            });
+
+            if (result.success) {
+            const response = await fetch('https://summerwood.biz/wp-json/custom-api/v1/authenticate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                payload,
+                signature: result.signature,
+                user_id: user_Id,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                await AsyncStorage.setItem('token', String(data.token));
+                setToken(data.token);
+                navigation.replace('Homepage');
+            } else {
+                Alert.alert('Backend Error', data.message);
+            }
+            } else {
+                Alert.alert('Failed', 'Biometric authentication failed.');
+            }
+        } catch (error) {
+            Alert.alert('Error', error.message || 'Something went wrong.');
+        }
+    };
+
+    useEffect(() => {
+        const checkBiometricAvailability = async () => {
+            try {
+            const { available } = await rnBiometrics.isSensorAvailable();
+
+            const userId = await AsyncStorage.getItem('user_id');
+            if (available && userId) {
+                handleBiometricAuth(userId);
+            }
+            } catch (err) {
+            console.warn('Biometric check failed:', err);
+            }
+        };
+
+        checkBiometricAvailability();
     }, []);
 
     return (
@@ -198,7 +292,7 @@ const Login = () => {
                                 ) : (
                                     <Text style={styles.signInButtonText}>SIGN IN</Text>
                                 )}
-                            </TouchableOpacity>
+                            </TouchableOpacity>                            
                         </Animated.View>
                     </View>
                 </KeyboardAvoidingView>
@@ -300,6 +394,15 @@ const styles = StyleSheet.create({
         color: '#000',
         fontFamily: 'PlusJakartaSans-Bold',
         textTransform: 'uppercase',
+    },
+    button: {
+        padding: 15,
+        backgroundColor: '#6200EE',
+        borderRadius: 5,
+    },
+    buttonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
     },
 });
 
