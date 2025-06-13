@@ -23,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Keyboard } from 'react-native';
 import ReactNativeBiometrics from 'react-native-biometrics';
+import { API } from "./constant/ConstantUrl";
 
 const rnBiometrics = new ReactNativeBiometrics();
 
@@ -43,7 +44,7 @@ const Login = () => {
 
     const handleLogin = async () => {
         setLoading(true);
-        const apiUrl = 'https://summerwood.biz/wp-json/custom-api/v1/login';
+        const apiUrl = API+'login';
         try {
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -141,7 +142,7 @@ const Login = () => {
     const storePublicKey = async (userId) => {
         try {
             const { publicKey } = await rnBiometrics.createKeys();
-            await fetch('https://summerwood.biz/wp-json/custom-api/v1/store-public-key', {
+            await fetch(API+'store-public-key', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, public_key: publicKey }),
@@ -152,21 +153,23 @@ const Login = () => {
     };
 
     const handleBiometricAuth = async () => {
-        const { available } = await rnBiometrics.isSensorAvailable();
+        const { available, biometryType } = await rnBiometrics.isSensorAvailable();
         if (!available) {
             Alert.alert('Error', 'Biometric authentication not available');
             return;
         }
+        Alert.alert("Biometry Type:", biometryType);
         const payload = generateNonce();
         const user_Id = await AsyncStorage.getItem('user_id');
+        const prompt = biometryType === 'FaceID' ? 'Authenticate with Face ID' : 'Authenticate with Biometrics';
         try {
             const result = await rnBiometrics.createSignature({
-            promptMessage: 'Authenticate Biometrics',
-            payload,
+                promptMessage: prompt,
+                payload,
             });
 
             if (result.success) {
-            const response = await fetch('https://summerwood.biz/wp-json/custom-api/v1/authenticate', {
+            const response = await fetch(API+'authenticate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -196,8 +199,8 @@ const Login = () => {
     useEffect(() => {
         const checkBiometricAvailability = async () => {
             try {
-            const { available } = await rnBiometrics.isSensorAvailable();
-
+            const { available, biometryType  } = await rnBiometrics.isSensorAvailable();
+            Alert.alert("Biometry Type", biometryType || "Not Available");
             const userId = await AsyncStorage.getItem('user_id');
             if (available && userId) {
                 handleBiometricAuth(userId);

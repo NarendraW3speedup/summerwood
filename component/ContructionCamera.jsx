@@ -11,7 +11,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { API } from "./constant/ConstantUrl";
 import Header from './Header';
 import ArrowVector from '../assets/ArrowVector.png';
 import { Dimensions } from 'react-native';
@@ -50,7 +50,7 @@ const ConstructionCamera = () => {
   }, []);
 
   const getActiveCamera = async () =>{
-      const apiUrl = 'https://summerwood.biz/wp-json/custom-api/v1/camera';
+      const apiUrl = API+'camera';
       const response = await fetch(apiUrl, {
               method: 'GET',
               headers: {

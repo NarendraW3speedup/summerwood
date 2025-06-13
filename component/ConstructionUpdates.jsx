@@ -5,6 +5,7 @@ import Backbutton from "../assets/Vector.png"
 import { useNavigation } from '@react-navigation/native';
 import Header from './Header';
 import Pdf from 'react-native-pdf';
+import { API } from "./constant/ConstantUrl";
 
 const ConstructionUpdates = () => {
     const navigation = useNavigation();
@@ -19,7 +20,7 @@ const ConstructionUpdates = () => {
      */
     //const pdfSource = { uri: 'bundle-assets://dummy.pdf' };
     const getPdf = async () =>{
-      const apiUrl = 'https://summerwood.biz/wp-json/custom-api/v1/get-pdf-url';
+      const apiUrl = API+'get-pdf-url';
       const response = await fetch(apiUrl, {
               method: 'GET',
               headers: {

@@ -1,0 +1,1 @@
+export const API = "https://summerwood.biz/wp-json/custom-api/v1/";
